@@ -2,3 +2,5 @@
 encrypted.*
 encryption.*
 decrypted*
+dist/
+.DS_Store
