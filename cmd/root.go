@@ -27,14 +27,13 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "mobile-security-hashgenerator",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Use:   "msh",
+	Short: "Basically the program can encrypt and decrypt a file using AES-256.",
+	Long: `Basically the program can encrypt and decrypt a file using AES-256.
+It generates a random key at every encryption and it can export encrypted data/key also in Base64 format.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+For using the program simply run ./msh --help
+`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
