@@ -63,6 +63,7 @@ var generateMapCmd = &cobra.Command{
 		var useB64, _ = cmd.Flags().GetBool("b64")
 		var filesList, _ = cmd.Flags().GetStringArray("files")
 		var mapFileOut, _ = cmd.Flags().GetString("map-file-out")
+		var key, _ = cmd.Flags().GetString("key")
 		var plainMapFileOut, _ = cmd.Flags().GetString("plain-map-file-out")
 		var encryptionKeyFile, _ = cmd.Flags().GetString("key-file-out")
 
@@ -105,8 +106,17 @@ var generateMapCmd = &cobra.Command{
 
 		var cryptedMap string
 		var encryptionKey []byte
+		var keyByteArr []byte
 
-		cryptedMap, encryptionKey = cryptoutils.Encrypt(string(mapFileContent))
+		if key != "" {
+			keyByteArr = []byte(key)
+			if len(keyByteArr) != 32 {
+				fmt.Println("Key must be 32 bytes long")
+				return
+			}
+		}
+
+		cryptedMap, encryptionKey = cryptoutils.Encrypt(string(mapFileContent), keyByteArr)
 
 		if useB64 {
 			cryptedMap = b64.StdEncoding.EncodeToString([]byte(cryptedMap))
@@ -118,7 +128,10 @@ var generateMapCmd = &cobra.Command{
 		}
 
 		os.WriteFile(mapFileOut, []byte(cryptedMap), 0644)
-		os.WriteFile(encryptionKeyFile, (encryptionKey), 0644)
+
+		if key == "" {
+			os.WriteFile(encryptionKeyFile, (encryptionKey), 0644)
+		}
 	},
 }
 
@@ -127,6 +140,7 @@ func init() {
 	generateMapCmd.Flags().Bool("export-plain", false, "Export plain text map file")
 	generateMapCmd.Flags().Bool("b64", false, "User base64 for writing map and key files")
 	generateMapCmd.Flags().StringArray("files", []string{}, "List of files to get for generating the map, also folder supported (repeat --files arg)")
+	generateMapCmd.Flags().String("key", "", "random string (32bytes length) to encrypt the map file")
 	generateMapCmd.Flags().String("key-file-out", "encryption.key", "file path containing encryption key (defaults to key)")
 	generateMapCmd.Flags().String("map-file-out", "encrypted.json", "encrypted map file path (defaults to encrypted.json)")
 	generateMapCmd.Flags().String("plain-map-file-out", "toencrypt.json", "map file path (defaults to toencrypt.json)")

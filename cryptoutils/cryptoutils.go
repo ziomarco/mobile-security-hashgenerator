@@ -7,9 +7,16 @@ import (
 	"io"
 )
 
-func Encrypt(stringToEncrypt string) (encryptedString string, key []byte) {
-	encryptionKey := make([]byte, 32)
-	rand.Read(encryptionKey)
+func Encrypt(stringToEncrypt string, customkey []byte) (encryptedString string, key []byte) {
+	var encryptionKey []byte
+
+	if customkey != nil {
+		encryptionKey = customkey
+	} else {
+		encryptionKey = make([]byte, 32)
+		rand.Read(encryptionKey)
+	}
+
 	plaintext := []byte(stringToEncrypt)
 
 	//Create a new Cipher Block from the key

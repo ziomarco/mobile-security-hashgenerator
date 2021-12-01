@@ -31,6 +31,7 @@ var encryptCmd = &cobra.Command{
 	Short: "This command can be used to encrypt a map file",
 	Long:  `This command can be used to encrypt a map file.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		var key, _ = cmd.Flags().GetString("key")
 		var mapFile, _ = cmd.Flags().GetString("map-file")
 		var mapFileOut, _ = cmd.Flags().GetString("map-file-out")
 		var encryptionKeyFile, _ = cmd.Flags().GetString("key-file-out")
@@ -50,8 +51,17 @@ var encryptCmd = &cobra.Command{
 
 		var cryptedMap string
 		var encryptionKey []byte
+		var keyByteArr []byte
 
-		cryptedMap, encryptionKey = cryptoutils.Encrypt(string(mapFileContent))
+		if key != "" {
+			keyByteArr = []byte(key)
+			if len(keyByteArr) != 32 {
+				fmt.Println("Key must be 32 bytes long")
+				return
+			}
+		}
+
+		cryptedMap, encryptionKey = cryptoutils.Encrypt(string(mapFileContent), keyByteArr)
 
 		if useB64 {
 			cryptedMap = b64.StdEncoding.EncodeToString([]byte(cryptedMap))
@@ -59,13 +69,17 @@ var encryptCmd = &cobra.Command{
 		}
 
 		os.WriteFile(mapFileOut, []byte(cryptedMap), 0644)
-		os.WriteFile(encryptionKeyFile, encryptionKey, 0644)
+
+		if key == "" {
+			os.WriteFile(encryptionKeyFile, encryptionKey, 0644)
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(encryptCmd)
 	encryptCmd.Flags().String("map-file", "", "map file to encrypt")
+	encryptCmd.Flags().String("key", "", "random string (32bytes length) to encrypt the map file")
 	encryptCmd.Flags().String("key-file-out", "encryption.key", "file path containing encryption key (defaults to key)")
 	encryptCmd.Flags().String("map-file-out", "encrypted.json", "encrypted map file path (defaults to encrypted.json)")
 	encryptCmd.Flags().Bool("b64", false, "User base64 for writing map and key files")

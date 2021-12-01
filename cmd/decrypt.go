@@ -34,6 +34,7 @@ var decryptCmd = &cobra.Command{
 		var mapFilePath, _ = cmd.Flags().GetString("map-file")
 		var mapFileOut, _ = cmd.Flags().GetString("map-file-out")
 		var decryptionKeyFilePath, _ = cmd.Flags().GetString("key-file")
+		var key, _ = cmd.Flags().GetString("key")
 		var useB64, _ = cmd.Flags().GetBool("b64")
 
 		if mapFilePath == "" {
@@ -41,14 +42,19 @@ var decryptCmd = &cobra.Command{
 			return
 		}
 
-		if decryptionKeyFilePath == "" {
+		if decryptionKeyFilePath == "" && key == "" {
 			fmt.Println("You must provide a decryption key")
 			return
 		}
 
-		var decryptionKeyFileContent, decKeyErr = os.ReadFile(decryptionKeyFilePath)
-		if decKeyErr != nil {
-			panic("Error reading decryption key file")
+		var decryptionKeyFileContent []byte
+		var decKeyErr error
+
+		if decryptionKeyFilePath != "" {
+			decryptionKeyFileContent, decKeyErr = os.ReadFile(decryptionKeyFilePath)
+			if decKeyErr != nil {
+				panic("Error reading decryption key file")
+			}
 		}
 
 		var mapFileContent, mapErr = os.ReadFile(mapFilePath)
@@ -63,6 +69,14 @@ var decryptCmd = &cobra.Command{
 
 		mapFile = string(mapFileContent)
 		decryptionKey = decryptionKeyFileContent
+
+		if key != "" {
+			decryptionKey = []byte(key)
+			if len(decryptionKey) != 32 {
+				fmt.Println("Decryption key must be 32 bytes long")
+				return
+			}
+		}
 
 		if useB64 {
 			decodedMapFile, _ := b64.StdEncoding.DecodeString(mapFile)
@@ -79,6 +93,7 @@ func init() {
 	rootCmd.AddCommand(decryptCmd)
 	decryptCmd.Flags().String("map-file", "", "map file to decrypt")
 	decryptCmd.Flags().String("key-file", "", "file containing decryption key")
+	decryptCmd.Flags().String("key", "", "decryption key")
 	decryptCmd.Flags().String("map-file-out", "decrypted.json", "decrypted map file path (defaults to decrypted.json)")
 	decryptCmd.Flags().Bool("b64", false, "User base64 for reading map and key files")
 }
