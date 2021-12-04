@@ -104,7 +104,7 @@ var generateMapCmd = &cobra.Command{
 
 		var mapFileContent, _ = json.Marshal(files)
 
-		var cryptedMap string
+		var cryptedMap []byte
 		var encryptionKey []byte
 		var keyByteArr []byte
 
@@ -119,7 +119,7 @@ var generateMapCmd = &cobra.Command{
 		cryptedMap, encryptionKey = cryptoutils.Encrypt(string(mapFileContent), keyByteArr)
 
 		if useB64 {
-			cryptedMap = b64.StdEncoding.EncodeToString([]byte(cryptedMap))
+			cryptedMap = []byte(b64.StdEncoding.EncodeToString([]byte(cryptedMap)))
 			encryptionKey = []byte(b64.StdEncoding.EncodeToString(encryptionKey))
 		}
 

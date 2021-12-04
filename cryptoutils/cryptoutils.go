@@ -1,13 +1,14 @@
 package cryptoutils
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"io"
+	"errors"
 )
 
-func Encrypt(stringToEncrypt string, customkey []byte) (encryptedString string, key []byte) {
+func Encrypt(stringToEncrypt string, customkey []byte) (encrypted []byte, key []byte) {
 	var encryptionKey []byte
 
 	if customkey != nil {
@@ -17,59 +18,91 @@ func Encrypt(stringToEncrypt string, customkey []byte) (encryptedString string, 
 		rand.Read(encryptionKey)
 	}
 
-	plaintext := []byte(stringToEncrypt)
-
 	//Create a new Cipher Block from the key
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	//Create a new GCM - https://en.wikipedia.org/wiki/Galois/Counter_Mode
-	//https://golang.org/pkg/crypto/cipher/#NewGCM
-	aesGCM, err := cipher.NewGCM(block)
+	plaintext, err := pkcs7Pad([]byte(stringToEncrypt), block.BlockSize())
 	if err != nil {
 		panic(err.Error())
 	}
 
-	//Create a nonce. Nonce should be from GCM
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		panic(err.Error())
-	}
-
-	//Encrypt the data using aesGCM.Seal
-	//Since we don't want to save the nonce somewhere else in this case, we add it as a prefix to the encrypted data. The first nonce argument in Seal is the prefix.
-	ciphertext := aesGCM.Seal(nonce, nonce, plaintext, nil)
-	return string(ciphertext), encryptionKey
+	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
+	iv := ciphertext[:aes.BlockSize]
+	rand.Read(iv)
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext[aes.BlockSize:], plaintext)
+	return ciphertext, encryptionKey
 }
 
-func Decrypt(encryptedString string, keyString []byte) (decryptedString string) {
-	enc := []byte(encryptedString)
-
+func Decrypt(enc []byte, keyString []byte) (decryptedString []byte) {
 	//Create a new Cipher Block from the key
 	block, err := aes.NewCipher(keyString)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	//Create a new GCM
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	//Get the nonce size
-	nonceSize := aesGCM.NonceSize()
-
 	//Extract the nonce from the encrypted data
-	nonce, ciphertext := enc[:nonceSize], enc[nonceSize:]
+	iv, ciphertext := enc[:aes.BlockSize], enc[aes.BlockSize:]
+	bm := cipher.NewCBCDecrypter(block, iv)
+	bm.CryptBlocks(ciphertext, ciphertext)
+	ciphertext, _ = pkcs7Unpad(ciphertext, aes.BlockSize)
 
-	//Decrypt the data
-	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	return string(plaintext)
+	return ciphertext
 }
+
+// pkcs7Pad right-pads the given byte slice with 1 to n bytes, where
+// n is the block size. The size of the result is x times n, where x
+// is at least 1.
+func pkcs7Pad(b []byte, blocksize int) ([]byte, error) {
+	if blocksize <= 0 {
+		return nil, ErrInvalidBlockSize
+	}
+	if len(b) == 0 {
+		return nil, ErrInvalidPKCS7Data
+	}
+	n := blocksize - (len(b) % blocksize)
+	pb := make([]byte, len(b)+n)
+	copy(pb, b)
+	copy(pb[len(b):], bytes.Repeat([]byte{byte(n)}, n))
+	return pb, nil
+}
+
+// pkcs7Unpad validates and unpads data from the given bytes slice.
+// The returned value will be 1 to n bytes smaller depending on the
+// amount of padding, where n is the block size.
+func pkcs7Unpad(b []byte, blocksize int) ([]byte, error) {
+	if blocksize <= 0 {
+		return nil, ErrInvalidBlockSize
+	}
+	if len(b) == 0 {
+		return nil, ErrInvalidPKCS7Data
+	}
+	if len(b)%blocksize != 0 {
+		return nil, ErrInvalidPKCS7Padding
+	}
+	c := b[len(b)-1]
+	n := int(c)
+	if n == 0 || n > len(b) {
+		return nil, ErrInvalidPKCS7Padding
+	}
+	for i := 0; i < n; i++ {
+		if b[len(b)-n+i] != c {
+			return nil, ErrInvalidPKCS7Padding
+		}
+	}
+	return b[:len(b)-n], nil
+}
+
+var (
+	// ErrInvalidBlockSize indicates hash blocksize <= 0.
+	ErrInvalidBlockSize = errors.New("invalid blocksize")
+
+	// ErrInvalidPKCS7Data indicates bad input to PKCS7 pad or unpad.
+	ErrInvalidPKCS7Data = errors.New("invalid PKCS7 data (empty or not padded)")
+
+	// ErrInvalidPKCS7Padding indicates PKCS7 unpad fails to bad input.
+	ErrInvalidPKCS7Padding = errors.New("invalid padding on input")
+)

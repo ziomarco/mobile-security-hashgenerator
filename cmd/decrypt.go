@@ -60,7 +60,7 @@ var decryptCmd = &cobra.Command{
 		var mapFileContent, mapErr = os.ReadFile(mapFilePath)
 
 		if mapErr != nil {
-			fmt.Println("error reading map file")
+			fmt.Println("error reading map file", mapErr.Error())
 			return
 		}
 
@@ -84,8 +84,8 @@ var decryptCmd = &cobra.Command{
 			decryptionKey, _ = b64.StdEncoding.DecodeString(string(decryptionKey))
 		}
 
-		var decodedMapFile = cryptoutils.Decrypt(string(mapFile), decryptionKey)
-		os.WriteFile(mapFileOut, []byte(decodedMapFile), 0644)
+		var decodedMapFile = cryptoutils.Decrypt([]byte(mapFile), decryptionKey)
+		os.WriteFile(mapFileOut, decodedMapFile, 0644)
 	},
 }
 

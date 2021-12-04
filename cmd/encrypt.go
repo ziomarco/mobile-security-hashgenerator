@@ -49,7 +49,7 @@ var encryptCmd = &cobra.Command{
 			return
 		}
 
-		var cryptedMap string
+		var cryptedMap []byte
 		var encryptionKey []byte
 		var keyByteArr []byte
 
@@ -64,11 +64,11 @@ var encryptCmd = &cobra.Command{
 		cryptedMap, encryptionKey = cryptoutils.Encrypt(string(mapFileContent), keyByteArr)
 
 		if useB64 {
-			cryptedMap = b64.StdEncoding.EncodeToString([]byte(cryptedMap))
+			cryptedMap = []byte(b64.StdEncoding.EncodeToString(cryptedMap))
 			encryptionKey = []byte(b64.StdEncoding.EncodeToString(encryptionKey))
 		}
 
-		os.WriteFile(mapFileOut, []byte(cryptedMap), 0644)
+		os.WriteFile(mapFileOut, cryptedMap, 0644)
 
 		if key == "" {
 			os.WriteFile(encryptionKeyFile, encryptionKey, 0644)
